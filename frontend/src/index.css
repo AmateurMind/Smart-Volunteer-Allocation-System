@@ -1,91 +1,52 @@
 @import "tailwindcss";
 
 @theme {
-    /* ── SVAS Brand Palette ── */
-    --color-brand-brown: #a47251;
+    /* ── SVAS Brand Palette (Requested) ── */
+    --color-brand-brown: #A47251;
+    --color-brand-gold:  #DD9E59;
+    --color-brand-cream: #F0D8A1;
+    --color-brand-mint:  #DCF0C3;
+
+    /* ── Extended Brand Palette ── */
     --color-brand-brown-light: #bf9070;
-    --color-brand-brown-dark: #7a5438;
-    --color-brand-brown-50: #f5ede5;
-    --color-brand-brown-100: #e8d4c2;
+    --color-brand-brown-dark:  #7a5438;
+    --color-brand-brown-50:    #f5ede5;
 
-    --color-brand-gold: #dd9e59;
     --color-brand-gold-light: #e8b87a;
-    --color-brand-gold-dark: #c4832e;
-    --color-brand-gold-50: #fbf3e6;
-    --color-brand-gold-100: #f5e2c0;
+    --color-brand-gold-dark:  #c4832e;
+    --color-brand-gold-50:    #fbf3e6;
 
-    --color-brand-cream: #f0d8a1;
     --color-brand-cream-light: #f7ecc8;
-    --color-brand-cream-dark: #d9be72;
-    --color-brand-cream-50: #fdfaf0;
+    --color-brand-cream-dark:  #d9be72;
+    --color-brand-cream-50:    #fdfaf0;
 
-    --color-brand-mint: #dcf0c3;
     --color-brand-mint-light: #ecf7da;
-    --color-brand-mint-dark: #b5d98a;
-    --color-brand-mint-50: #f4fbe9;
+    --color-brand-mint-dark:  #b5d98a;
+    --color-brand-mint-50:    #f4fbe9;
 
     /* ── Semantic Roles ── */
     --color-primary: var(--color-brand-brown);
-    --color-primary-light: var(--color-brand-brown-light);
-    --color-primary-dark: var(--color-brand-brown-dark);
-    --color-primary-50: var(--color-brand-brown-50);
-    --color-primary-100: var(--color-brand-brown-100);
+    --color-primary-foreground: #ffffff;
+    
+    --color-secondary: var(--color-brand-gold);
+    --color-secondary-foreground: #ffffff;
 
     --color-accent: var(--color-brand-gold);
-    --color-accent-light: var(--color-brand-gold-light);
-    --color-accent-dark: var(--color-brand-gold-dark);
-    --color-accent-50: var(--color-brand-gold-50);
+    --color-accent-foreground: #ffffff;
+
+    --color-background: #ffffff;
+    --color-foreground: #111827;
 
     --color-surface: var(--color-brand-cream-50);
-    --color-surface-raised: #ffffff;
     --color-surface-muted: var(--color-brand-cream-light);
 
     --color-success: #4caf7d;
-    --color-success-50: var(--color-brand-mint-50);
-    --color-success-100: var(--color-brand-mint);
-
     --color-warning: var(--color-brand-gold);
-    --color-warning-50: var(--color-brand-gold-50);
-
-    --color-danger: #d9534f;
-    --color-danger-50: #fdf2f2;
-    --color-danger-100: #fad5d5;
-
-    --color-info: #4a90c4;
-    --color-info-50: #ebf4fb;
-
-    /* ── Urgency ── */
-    --color-urgency-high: #d9534f;
-    --color-urgency-high-bg: #fdf2f2;
-    --color-urgency-medium: var(--color-brand-gold);
-    --color-urgency-medium-bg: var(--color-brand-gold-50);
-    --color-urgency-low: #4caf7d;
-    --color-urgency-low-bg: var(--color-brand-mint-50);
-
-    /* ── Category ── */
-    --color-cat-food: #e07b39;
-    --color-cat-health: #d9534f;
-    --color-cat-education: #4a90c4;
-    --color-cat-shelter: #7b68c8;
-    --color-cat-clothing: #c4699a;
-    --color-cat-other: #8a9ba8;
-
-    /* ── Neutral Scale ── */
-    --color-gray-50: #fafafa;
-    --color-gray-100: #f4f4f5;
-    --color-gray-200: #e4e4e7;
-    --color-gray-300: #d1d5db;
-    --color-gray-400: #9ca3af;
-    --color-gray-500: #6b7280;
-    --color-gray-600: #4b5563;
-    --color-gray-700: #374151;
-    --color-gray-800: #1f2937;
-    --color-gray-900: #111827;
+    --color-danger:  #d9534f;
 
     /* ── Typography ── */
-    --font-sans:
-        "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+    --font-sans: "Nunito", system-ui, sans-serif;
+    --font-serif: "Instrument Serif", serif;
 
     /* ── Shadows ── */
     --shadow-card:
@@ -94,20 +55,16 @@
     --shadow-raised:
         0 4px 12px 0 rgba(164, 114, 81, 0.12),
         0 2px 4px -1px rgba(164, 114, 81, 0.08);
-    --shadow-modal:
-        0 20px 48px 0 rgba(100, 60, 30, 0.18),
-        0 4px 12px -2px rgba(100, 60, 30, 0.1);
 
     /* ── Border Radius ── */
-    --radius-card: 0.75rem;
-    --radius-button: 0.5rem;
-    --radius-badge: 9999px;
-
-    /* ── Transitions ── */
-    --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-    --duration-fast: 150ms;
-    --duration-normal: 250ms;
+    --radius-xl: 1rem;
+    --radius-lg: 0.75rem;
+    --radius-md: 0.5rem;
+    --radius-sm: 0.25rem;
 }
+
+/* ── Google Fonts ── */
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap");
 
 /* ── Google Font import ── */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
@@ -148,10 +105,10 @@
     h4,
     h5,
     h6 {
-        font-family: var(--font-sans);
-        font-weight: 600;
-        color: var(--color-gray-900);
-        line-height: 1.25;
+        font-family: var(--font-serif);
+        font-weight: 500;
+        color: var(--color-foreground);
+        line-height: 1.2;
         margin: 0;
     }
 

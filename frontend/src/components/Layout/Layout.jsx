@@ -6,16 +6,8 @@ import Header from "./Header";
 export default function Layout() {
     const [collapsed, setCollapsed] = useState(false);
 
-    const sidebarWidth = collapsed ? 72 : 260;
-
     return (
-        <div
-            style={{
-                display: "flex",
-                minHeight: "100svh",
-                background: "var(--color-surface)",
-            }}
-        >
+        <div className="flex min-h-screen bg-brand-cream-50 font-sans">
             {/* ── Sidebar ───────────────────────────────────────────────────── */}
             <Sidebar
                 collapsed={collapsed}
@@ -24,58 +16,24 @@ export default function Layout() {
 
             {/* ── Main content area ─────────────────────────────────────────── */}
             <div
-                style={{
-                    flex: 1,
-                    marginLeft: sidebarWidth,
-                    display: "flex",
-                    flexDirection: "column",
-                    minWidth: 0,
-                    transition: "margin-left 250ms cubic-bezier(0.4,0,0.2,1)",
-                }}
+                className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
+                    collapsed ? "ml-20" : "ml-64"
+                }`}
             >
                 {/* Sticky header */}
                 <Header onToggleSidebar={() => setCollapsed((c) => !c)} />
 
                 {/* Page content */}
-                <main
-                    style={{
-                        flex: 1,
-                        padding: "1.5rem",
-                        overflowY: "auto",
-                        overflowX: "hidden",
-                    }}
-                >
+                <main className="flex-1 p-8 overflow-y-auto">
                     <Outlet />
                 </main>
 
                 {/* Footer */}
-                <footer
-                    style={{
-                        padding: "0.75rem 1.5rem",
-                        borderTop: "1px solid var(--color-brand-cream)",
-                        background: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: "1rem",
-                        flexWrap: "wrap",
-                    }}
-                >
-                    <span
-                        style={{
-                            fontSize: "0.75rem",
-                            color: "var(--color-gray-400)",
-                        }}
-                    >
-                        © {new Date().getFullYear()} SVAS — Smart Volunteer Allocation
-                        System
+                <footer className="px-8 py-4 bg-white border-t border-brand-cream/30 flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-[10px] font-bold text-brand-brown/40 uppercase tracking-[0.2em]">
+                        © {new Date().getFullYear()} SVAS — Smart Volunteer Allocation System
                     </span>
-                    <span
-                        style={{
-                            fontSize: "0.75rem",
-                            color: "var(--color-gray-400)",
-                        }}
-                    >
+                    <span className="text-[10px] font-bold text-brand-brown/40 uppercase tracking-[0.2em]">
                         Powered by Gemini AI · Firebase · Google Cloud
                     </span>
                 </footer>

@@ -13,6 +13,7 @@ import {
     LogOut,
     Heart,
     Bell,
+    Layers
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -22,51 +23,34 @@ const NAV_ITEMS = [
         to: "/dashboard",
         label: "Dashboard",
         icon: LayoutDashboard,
-        description: "Overview & stats",
     },
     {
-        to: "/upload",
-        label: "Upload Data",
-        icon: Upload,
-        description: "Ingest CSV / JSON / images",
-    },
-    {
-        to: "/analyze",
+        to: "/analysis",
         label: "Need Analysis",
         icon: Brain,
-        description: "AI-powered categorisation",
     },
     {
         to: "/volunteers",
         label: "Volunteers",
         icon: Users,
-        description: "Profiles & availability",
     },
     {
-        to: "/match",
+        to: "/matching",
         label: "Task Matching",
         icon: GitBranch,
-        description: "Smart assignment engine",
-    },
-    {
-        to: "/reports",
-        label: "Reports",
-        icon: BarChart2,
-        description: "Analytics & insights",
     },
     {
         to: "/settings",
         label: "Settings",
         icon: Settings,
-        description: "Profile & preferences",
     },
 ];
 
 // ── Role badge colours ────────────────────────────────────────────────────────
 const ROLE_STYLES = {
-    ADMIN: { bg: "#f5ede5", color: "#7a5438", label: "Admin" },
-    COORDINATOR: { bg: "#fbf3e6", color: "#8b5c12", label: "Coordinator" },
-    VOLUNTEER: { bg: "#f4fbe9", color: "#2e6b48", label: "Volunteer" },
+    ADMIN: "bg-brand-gold text-white",
+    COORDINATOR: "bg-brand-cream text-brand-brown-dark",
+    VOLUNTEER: "bg-brand-mint text-brand-brown-dark",
 };
 
 // ── Avatar initials helper ────────────────────────────────────────────────────
@@ -79,16 +63,11 @@ function getInitials(name = "") {
         .join("");
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sidebar component
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function Sidebar({ collapsed, onToggle }) {
     const { displayName, email, role, logout, photoURL } = useAuth();
     const navigate = useNavigate();
     const [loggingOut, setLoggingOut] = useState(false);
 
-    const roleStyle = ROLE_STYLES[role] || ROLE_STYLES.VOLUNTEER;
     const initials = getInitials(displayName);
 
     const handleLogout = async () => {
@@ -97,7 +76,7 @@ export default function Sidebar({ collapsed, onToggle }) {
             await logout();
             navigate("/login");
         } catch {
-            // toast already shown by AuthContext
+            // Error handled in AuthContext
         } finally {
             setLoggingOut(false);
         }
@@ -105,299 +84,100 @@ export default function Sidebar({ collapsed, onToggle }) {
 
     return (
         <aside
-            className="sidebar"
-            style={{ width: collapsed ? 72 : 260 }}
+            className={`fixed left-0 top-0 h-screen bg-brand-brown text-white z-50 transition-all duration-300 ease-in-out shadow-2xl flex flex-col ${
+                collapsed ? "w-20" : "w-64"
+            }`}
         >
             {/* ── Logo / Brand ─────────────────────────────────────────────── */}
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                    padding: collapsed ? "1.25rem 1rem" : "1.25rem 1.25rem",
-                    borderBottom: "1px solid var(--color-brand-cream)",
-                    overflow: "hidden",
-                    minHeight: 64,
-                }}
-            >
-                {/* Logo mark */}
-                <div
-                    style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: "0.625rem",
-                        background:
-                            "linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-accent) 100%)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                        boxShadow: "0 2px 8px rgba(164,114,81,0.3)",
-                    }}
-                >
-                    <Heart size={20} color="#fff" strokeWidth={2.5} />
+            <div className={`p-6 flex items-center gap-3 border-b border-white/10 ${collapsed ? "justify-center" : ""}`}>
+                <div className="w-10 h-10 rounded-xl bg-brand-gold flex items-center justify-center flex-shrink-0 shadow-lg shadow-black/20">
+                    <Heart size={24} className="text-brand-brown" strokeWidth={2.5} />
                 </div>
-
-                {/* Brand name */}
                 {!collapsed && (
-                    <div style={{ overflow: "hidden" }}>
-                        <div
-                            style={{
-                                fontSize: "1.0625rem",
-                                fontWeight: 700,
-                                color: "var(--color-primary-dark)",
-                                lineHeight: 1.2,
-                                whiteSpace: "nowrap",
-                            }}
-                        >
-                            SVAS
-                        </div>
-                        <div
-                            style={{
-                                fontSize: "0.7rem",
-                                color: "var(--color-gray-400)",
-                                whiteSpace: "nowrap",
-                                letterSpacing: "0.03em",
-                            }}
-                        >
-                            Volunteer Allocation
-                        </div>
+                    <div className="overflow-hidden animate-in fade-in slide-in-from-left-4 duration-300">
+                        <h2 className="font-serif text-2xl font-medium tracking-tight">SVAS</h2>
+                        <p className="text-[10px] text-brand-cream/60 font-bold uppercase tracking-[0.2em] -mt-1">Allocation</p>
                     </div>
                 )}
             </div>
 
             {/* ── Navigation ───────────────────────────────────────────────── */}
-            <nav
-                style={{
-                    flex: 1,
-                    overflowY: "auto",
-                    overflowX: "hidden",
-                    padding: "0.75rem 0.625rem",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "0.125rem",
-                }}
-            >
-                {NAV_ITEMS.map(({ to, label, icon: Icon, description }) => (
+            <nav className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
+                {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
                     <NavLink
                         key={to}
                         to={to}
-                        title={collapsed ? label : undefined}
                         className={({ isActive }) =>
-                            `nav-item ${isActive ? "active" : ""}`
+                            `flex items-center gap-3 p-3 rounded-lg transition-all duration-200 group ${
+                                isActive 
+                                    ? "bg-brand-gold text-brand-brown shadow-md font-bold" 
+                                    : "text-brand-cream/70 hover:bg-white/5 hover:text-white"
+                            } ${collapsed ? "justify-center" : ""}`
                         }
-                        style={{
-                            justifyContent: collapsed ? "center" : "flex-start",
-                            padding: collapsed ? "0.625rem" : "0.625rem 1rem",
-                        }}
                     >
-                        {({ isActive }) => (
-                            <>
-                                <Icon
-                                    size={20}
-                                    strokeWidth={isActive ? 2.5 : 2}
-                                    style={{
-                                        flexShrink: 0,
-                                        color: isActive
-                                            ? "var(--color-primary-dark)"
-                                            : "var(--color-gray-400)",
-                                        transition: "color 150ms",
-                                    }}
-                                />
-                                {!collapsed && (
-                                    <span
-                                        style={{
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
-                                        }}
-                                    >
-                                        {label}
-                                    </span>
-                                )}
-                            </>
+                        <Icon size={20} className="flex-shrink-0" />
+                        {!collapsed && (
+                            <span className="text-sm font-sans tracking-wide truncate animate-in fade-in duration-300">
+                                {label}
+                            </span>
+                        )}
+                        {!collapsed && (
+                            <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                <ChevronRight size={14} />
+                            </div>
                         )}
                     </NavLink>
                 ))}
             </nav>
 
-            {/* ── User profile section ─────────────────────────────────────── */}
-            <div
-                style={{
-                    borderTop: "1px solid var(--color-brand-cream)",
-                    padding: collapsed ? "0.75rem 0.625rem" : "0.875rem 1rem",
-                }}
-            >
-                {/* Profile row */}
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.75rem",
-                        marginBottom: "0.75rem",
-                        overflow: "hidden",
-                        justifyContent: collapsed ? "center" : "flex-start",
-                    }}
-                >
-                    {/* Avatar */}
-                    {photoURL ? (
-                        <img
-                            src={photoURL}
-                            alt={displayName}
-                            style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: "50%",
-                                objectFit: "cover",
-                                flexShrink: 0,
-                                border: "2px solid var(--color-brand-cream)",
-                            }}
-                        />
-                    ) : (
-                        <div
-                            className="avatar avatar-sm"
-                            style={{ width: 36, height: 36, fontSize: "0.8rem", flexShrink: 0 }}
-                            title={displayName}
-                        >
-                            {initials || "U"}
-                        </div>
-                    )}
-
-                    {/* Name + role */}
+            {/* ── User Profile ─────────────────────────────────────────────── */}
+            <div className={`p-4 border-t border-white/10 bg-black/10 ${collapsed ? "items-center" : ""}`}>
+                <div className={`flex items-center gap-3 ${collapsed ? "flex-col" : "mb-4"}`}>
+                    <div className="relative">
+                        {photoURL ? (
+                            <img src={photoURL} alt="" className="w-10 h-10 rounded-full border-2 border-brand-gold shadow-sm" />
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-brand-gold text-brand-brown flex items-center justify-center font-bold text-sm border-2 border-white/20">
+                                {initials}
+                            </div>
+                        )}
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-brand-mint-dark border-2 border-brand-brown rounded-full" />
+                    </div>
                     {!collapsed && (
-                        <div style={{ overflow: "hidden", flex: 1, minWidth: 0 }}>
-                            <div
-                                style={{
-                                    fontSize: "0.875rem",
-                                    fontWeight: 600,
-                                    color: "var(--color-gray-800)",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                }}
-                            >
-                                {displayName}
-                            </div>
-                            <div
-                                style={{
-                                    fontSize: "0.7rem",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    color: "var(--color-gray-400)",
-                                }}
-                            >
-                                {email}
-                            </div>
+                        <div className="flex-1 overflow-hidden">
+                            <p className="text-sm font-bold truncate">{displayName || "Volunteer"}</p>
+                            <p className="text-[10px] text-brand-cream/50 truncate uppercase tracking-wider">{role || "User"}</p>
                         </div>
                     )}
                 </div>
 
-                {/* Role badge */}
                 {!collapsed && (
-                    <div
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "0.3rem",
-                            padding: "0.2rem 0.6rem",
-                            borderRadius: 999,
-                            background: roleStyle.bg,
-                            color: roleStyle.color,
-                            fontSize: "0.72rem",
-                            fontWeight: 600,
-                            marginBottom: "0.75rem",
-                            letterSpacing: "0.01em",
-                        }}
+                    <button
+                        onClick={handleLogout}
+                        disabled={loggingOut}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-white/5 hover:bg-red-500/10 text-brand-cream/60 hover:text-red-400 border border-white/10 hover:border-red-400/30 transition-all text-xs font-bold uppercase tracking-widest"
                     >
-                        <span
-                            style={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: "50%",
-                                background: roleStyle.color,
-                                display: "inline-block",
-                            }}
-                        />
-                        {roleStyle.label}
-                    </div>
+                        <LogOut size={14} />
+                        <span>{loggingOut ? "Signing out..." : "Sign Out"}</span>
+                    </button>
                 )}
-
-                {/* Logout button */}
-                <button
-                    onClick={handleLogout}
-                    disabled={loggingOut}
-                    title="Sign out"
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: collapsed ? "center" : "flex-start",
-                        gap: "0.5rem",
-                        width: "100%",
-                        padding: collapsed ? "0.5rem" : "0.5rem 0.75rem",
-                        borderRadius: "0.5rem",
-                        border: "1px solid var(--color-danger-100)",
-                        background: loggingOut ? "var(--color-danger-50)" : "transparent",
-                        color: "var(--color-danger)",
-                        fontSize: "0.875rem",
-                        fontWeight: 500,
-                        cursor: loggingOut ? "not-allowed" : "pointer",
-                        opacity: loggingOut ? 0.7 : 1,
-                        transition: "background 150ms, color 150ms",
-                    }}
-                    onMouseEnter={(e) => {
-                        if (!loggingOut) {
-                            e.currentTarget.style.background = "var(--color-danger-50)";
-                        }
-                    }}
-                    onMouseLeave={(e) => {
-                        if (!loggingOut) {
-                            e.currentTarget.style.background = "transparent";
-                        }
-                    }}
-                >
-                    <LogOut size={16} strokeWidth={2} style={{ flexShrink: 0 }} />
-                    {!collapsed && (
-                        <span>{loggingOut ? "Signing out…" : "Sign Out"}</span>
-                    )}
-                </button>
+                {collapsed && (
+                    <button 
+                        onClick={handleLogout}
+                        className="p-2 rounded-lg text-brand-cream/60 hover:text-red-400 transition-colors"
+                        title="Logout"
+                    >
+                        <LogOut size={18} />
+                    </button>
+                )}
             </div>
 
-            {/* ── Collapse toggle ──────────────────────────────────────────── */}
+            {/* ── Collapse Toggle ─────────────────────────────────────────── */}
             <button
                 onClick={onToggle}
-                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                style={{
-                    position: "absolute",
-                    top: "50%",
-                    right: -12,
-                    transform: "translateY(-50%)",
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    background: "var(--color-surface-raised)",
-                    border: "1px solid var(--color-brand-cream)",
-                    boxShadow: "0 1px 4px rgba(164,114,81,0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    color: "var(--color-primary)",
-                    zIndex: 50,
-                    transition: "box-shadow 150ms",
-                }}
-                onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(164,114,81,0.25)";
-                }}
-                onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = "0 1px 4px rgba(164,114,81,0.15)";
-                }}
+                className="absolute -right-3 top-24 w-6 h-6 rounded-full bg-brand-gold text-brand-brown flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-50 border border-brand-brown"
             >
-                {collapsed ? (
-                    <ChevronRight size={13} strokeWidth={2.5} />
-                ) : (
-                    <ChevronLeft size={13} strokeWidth={2.5} />
-                )}
+                {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
             </button>
         </aside>
     );
