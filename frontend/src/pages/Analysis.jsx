@@ -8,7 +8,11 @@ import {
     Trash2, 
     Plus,
     Loader2,
-    Send
+    Send,
+    ArrowRight,
+    Sparkles,
+    FileSearch,
+    ShieldCheck
 } from "lucide-react";
 import { Card, LoadingSpinner } from "../components/ui/StatCard";
 import { Badge } from "../components/ui/Badge";
@@ -27,10 +31,9 @@ export default function Analysis() {
         const selectedFile = e.target.files[0];
         if (!selectedFile) return;
         
-        // Basic validation
-        const validTypes = ['text/plain', 'application/json', 'text/csv', 'image/jpeg', 'image/png'];
+        const validTypes = ['text/plain', 'application/json', 'text/csv', 'image/jpeg', 'image/png', 'application/pdf'];
         if (!validTypes.includes(selectedFile.type)) {
-            toast.error("Invalid file type. Please upload TXT, JSON, CSV, or an Image.");
+            toast.error("Invalid file type. Please upload TXT, JSON, CSV, PDF or an Image.");
             return;
         }
 
@@ -59,7 +62,6 @@ export default function Analysis() {
                 formData.append("file", file);
                 formData.append("auto_analyze", "true");
                 res = await api.uploadData(formData);
-                // If the response contains the analysis result directly
                 if (res.analysis_result) res = res.analysis_result;
             }
             
@@ -81,193 +83,191 @@ export default function Analysis() {
     };
 
     return (
-        <div className="analysis-page">
-            <div className="page-header">
-                <h1 className="page-title">AI Need Detection</h1>
-                <p className="page-subtitle">Harness Gemini 1.5 Flash to extract and prioritize community needs</p>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header */}
+            <div className="mb-10">
+                <h1 className="font-serif text-4xl text-brand-brown-dark mb-2">AI Need Detection</h1>
+                <p className="text-muted-foreground font-medium flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                    <Sparkles size={14} className="text-brand-gold" />
+                    Harness Gemini 1.5 Flash to extract and prioritize community needs
+                </p>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem", alignItems: "start" }}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
-                {/* Left Side: Input Selection */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                    <div className="tab-list">
-                        <div 
-                            className={`tab-item ${activeTab === "upload" ? "active" : ""}`}
+                {/* Input Panel */}
+                <div className="space-y-6">
+                    <div className="bg-brand-brown/5 p-1.5 rounded-xl flex gap-1">
+                        <button 
                             onClick={() => setActiveTab("upload")}
+                            className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${
+                                activeTab === "upload" 
+                                    ? "bg-white text-brand-brown shadow-sm" 
+                                    : "text-brand-brown/60 hover:text-brand-brown"
+                            }`}
                         >
-                            Upload File
-                        </div>
-                        <div 
-                            className={`tab-item ${activeTab === "manual" ? "active" : ""}`}
+                            Upload Document
+                        </button>
+                        <button 
                             onClick={() => setActiveTab("manual")}
+                            className={`flex-1 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${
+                                activeTab === "manual" 
+                                    ? "bg-white text-brand-brown shadow-sm" 
+                                    : "text-brand-brown/60 hover:text-brand-brown"
+                            }`}
                         >
                             Manual Entry
-                        </div>
+                        </button>
                     </div>
 
-                    <Card>
+                    <div className="bg-white rounded-2xl p-6 border border-brand-cream/30 shadow-sm">
                         {activeTab === "upload" ? (
                             <div 
-                                className="dropzone"
                                 onClick={() => fileInputRef.current?.click()}
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={(e) => {
-                                    e.preventDefault();
-                                    const droppedFile = e.dataTransfer.files[0];
-                                    if (droppedFile) setFile(droppedFile);
-                                }}
+                                className={`group cursor-pointer border-2 border-dashed rounded-xl p-10 flex flex-col items-center text-center gap-4 transition-all ${
+                                    file ? "border-brand-mint bg-brand-mint/5" : "border-brand-cream/50 hover:border-brand-gold hover:bg-brand-cream/5"
+                                }`}
                             >
                                 <input 
                                     type="file" 
                                     ref={fileInputRef} 
-                                    style={{ display: "none" }} 
+                                    className="hidden" 
                                     onChange={handleFileUpload}
                                 />
-                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-                                    <div style={{ 
-                                        width: 56, height: 56, borderRadius: "50%", 
-                                        background: "var(--color-accent-50)", 
-                                        display: "flex", alignItems: "center", justifyContent: "center",
-                                        color: "var(--color-accent-dark)"
-                                    }}>
-                                        <Upload size={28} />
-                                    </div>
-                                    <div>
-                                        <p style={{ fontWeight: 600 }}>{file ? file.name : "Click to upload or drag & drop"}</p>
-                                        <p style={{ fontSize: "0.75rem", color: "var(--color-gray-500)", marginTop: 4 }}>
-                                            CSV, JSON, TXT or Survey Images (max 10MB)
-                                        </p>
-                                    </div>
+                                <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
+                                    file ? "bg-brand-mint text-brand-mint-dark" : "bg-brand-cream-50 text-brand-brown/40 group-hover:bg-brand-gold/10 group-hover:text-brand-gold"
+                                }`}>
+                                    <Upload size={24} />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-brand-brown-dark">{file ? file.name : "Click or drag to upload survey"}</p>
+                                    <p className="text-[11px] text-muted-foreground mt-1 font-medium">CSV, JSON, PDF or Field Images (max 10MB)</p>
                                 </div>
                             </div>
                         ) : (
-                            <div className="form-group">
-                                <label className="form-label">Paste Survey Text or Field Report</label>
+                            <div className="space-y-3">
+                                <label className="text-xs font-bold text-brand-brown/60 uppercase tracking-widest ml-1">Survey Text or Field Report</label>
                                 <textarea 
-                                    className="form-textarea"
-                                    rows={8}
-                                    placeholder="Example: We visited the flooded area in Sector 5. Around 50 families are without food and clean water. Two elderly people need urgent medical attention for fever..."
+                                    className="w-full rounded-xl border border-brand-cream/50 p-4 min-h-[200px] text-sm font-medium focus:ring-4 focus:ring-brand-gold/10 focus:border-brand-gold outline-none transition-all resize-none"
+                                    placeholder="Example: We visited the flooded area in Sector 5. Around 50 families are without food and clean water. Urgent medical attention needed for fever cases..."
                                     value={text}
                                     onChange={(e) => setText(e.target.value)}
-                                    style={{ fontSize: "0.9rem" }}
                                 />
                             </div>
                         )}
 
-                        <div style={{ display: "flex", gap: "1rem", marginTop: "1.5rem" }}>
+                        <div className="flex gap-4 mt-8">
                             <button 
-                                className="btn btn-primary btn-lg" 
-                                style={{ flex: 1 }}
                                 onClick={runAnalysis}
                                 disabled={analyzing}
+                                className="flex-1 bg-brand-brown text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-brand-brown/20 hover:bg-brand-brown-dark hover:-translate-y-0.5 transition-all disabled:opacity-70 disabled:hover:translate-y-0"
                             >
                                 {analyzing ? (
                                     <>
-                                        <Loader2 size={18} className="animate-spin" /> Analyzing with Gemini...
+                                        <Loader2 size={18} className="animate-spin" />
+                                        <span>Analyzing with Gemini...</span>
                                     </>
                                 ) : (
                                     <>
-                                        <Zap size={18} /> Run Intelligence Analysis
+                                        <Zap size={18} className="text-brand-gold" fill="currentColor" />
+                                        <span>Run AI Intelligence</span>
                                     </>
                                 )}
                             </button>
                             <button 
-                                className="btn btn-outline"
                                 onClick={clearAll}
                                 disabled={analyzing}
+                                className="px-5 border border-brand-cream/50 rounded-xl text-brand-brown/40 hover:text-red-500 hover:border-red-100 hover:bg-red-50 transition-all"
                             >
-                                <Trash2 size={18} />
+                                <Trash2 size={20} />
                             </button>
                         </div>
-                    </Card>
+                    </div>
 
-                    {/* AI Tips Card */}
-                    <Card style={{ background: "linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-accent-50) 100%)", borderColor: "var(--color-primary-100)" }}>
-                        <h4 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.9rem", fontWeight: 700, color: "var(--color-primary-dark)" }}>
-                            <Zap size={16} fill="var(--color-primary-dark)" /> AI Analysis Pro-Tips
-                        </h4>
-                        <ul style={{ fontSize: "0.8rem", color: "var(--color-gray-600)", paddingLeft: "1.25rem", marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: 6 }}>
-                            <li>Upload <strong>survey photos</strong>; Gemini will extract text automatically.</li>
-                            <li>Include <strong>estimated numbers</strong> (e.g., '10 families') for better planning.</li>
-                            <li>Specify <strong>landmark hints</strong> if the exact address is unknown.</li>
+                    {/* AI Info Card */}
+                    <div className="bg-gradient-to-br from-brand-brown to-brand-brown-dark rounded-2xl p-6 text-white shadow-xl">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                                <ShieldCheck size={18} className="text-brand-gold" />
+                            </div>
+                            <h4 className="font-bold text-sm">Pro Analysis Tips</h4>
+                        </div>
+                        <ul className="space-y-3">
+                            {[
+                                "Upload survey photos for OCR extraction.",
+                                "Gemini detects priority based on context.",
+                                "Entity detection extracts locations & counts.",
+                            ].map((tip, i) => (
+                                <li key={i} className="flex items-start gap-2 text-xs text-white/70 leading-relaxed">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0 mt-1.5" />
+                                    <span>{tip}</span>
+                                </li>
+                            ))}
                         </ul>
-                    </Card>
+                    </div>
                 </div>
 
-                {/* Right Side: Analysis Results */}
-                <div>
+                {/* Results Panel */}
+                <div className="lg:sticky lg:top-24 h-fit">
                     {!result && !analyzing ? (
-                        <div style={{ 
-                            height: "100%", 
-                            minHeight: 400,
-                            display: "flex", 
-                            flexDirection: "column", 
-                            alignItems: "center", 
-                            justifyContent: "center",
-                            background: "rgba(255,255,255,0.4)",
-                            border: "2px dashed var(--color-gray-200)",
-                            borderRadius: "var(--radius-card)",
-                            padding: "2rem",
-                            textAlign: "center"
-                        }}>
-                            <div style={{ color: "var(--color-gray-300)", marginBottom: "1rem" }}>
-                                <FileText size={64} strokeWidth={1} />
+                        <div className="bg-brand-cream/5 border-2 border-dashed border-brand-cream/30 rounded-3xl p-12 flex flex-col items-center text-center justify-center min-h-[500px]">
+                            <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-brand-brown/10 shadow-inner mb-6">
+                                <FileSearch size={40} />
                             </div>
-                            <h3 style={{ color: "var(--color-gray-500)", fontWeight: 600 }}>No Analysis Results Yet</h3>
-                            <p style={{ color: "var(--color-gray-400)", fontSize: "0.85rem", marginTop: 8, maxWidth: 280 }}>
-                                Upload a file or enter text on the left to trigger the AI-powered detection engine.
+                            <h3 className="text-xl font-bold text-brand-brown/40">Waiting for Data</h3>
+                            <p className="text-sm text-brand-brown/30 mt-2 max-w-[280px]">
+                                Upload a document or type a report to see AI-powered detection in action.
                             </p>
                         </div>
                     ) : analyzing ? (
-                        <div style={{ padding: "2rem", textAlign: "center" }}>
-                            <LoadingSpinner size={48} label="Gemini is processing your request..." center />
-                            <div style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: 8 }}>
-                                <div style={{ height: 10, background: "var(--color-gray-100)", borderRadius: 5, overflow: "hidden" }}>
-                                    <div className="progress-fill" style={{ width: "65%" }} />
-                                </div>
-                                <span style={{ fontSize: "0.75rem", color: "var(--color-gray-400)" }}>Extracting entities & assessing urgency...</span>
+                        <div className="bg-white rounded-3xl p-12 flex flex-col items-center text-center justify-center min-h-[500px] border border-brand-cream/30 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-brand-cream/20">
+                                <div className="h-full bg-brand-gold animate-pulse w-2/3" />
                             </div>
+                            <LoadingSpinner size={48} color="var(--color-brand-brown)" />
+                            <p className="mt-6 font-bold text-brand-brown-dark">Gemini 1.5 Flash is thinking...</p>
+                            <p className="text-xs text-muted-foreground mt-2">Extracting needs and assessing community urgency</p>
                         </div>
                     ) : (
-                        <Card title="Analysis Intelligence Report" action={<Badge variant="success">Finalized</Badge>}>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-                                
-                                {/* Status Pills */}
-                                <div style={{ display: "flex", gap: "0.75rem" }}>
-                                    <div style={{ flex: 1, padding: "0.75rem", borderRadius: "0.5rem", background: "var(--color-gray-50)", border: "1px solid var(--color-gray-100)" }}>
-                                        <div style={{ fontSize: "0.7rem", color: "var(--color-gray-400)", textTransform: "uppercase", fontWeight: 700 }}>Category</div>
-                                        <div style={{ marginTop: 4 }}><Badge variant={result.category.toLowerCase()}>{result.category}</Badge></div>
+                        <div className="bg-white rounded-3xl border border-brand-cream/30 shadow-xl overflow-hidden animate-in zoom-in-95 duration-300">
+                            <div className="bg-brand-brown p-6 text-white flex justify-between items-center">
+                                <div>
+                                    <h3 className="font-bold text-lg">Intelligence Report</h3>
+                                    <p className="text-[10px] text-brand-cream/50 uppercase tracking-widest font-bold">Processed by AI Engine</p>
+                                </div>
+                                <Badge variant="success" className="bg-brand-gold text-brand-brown border-none font-bold">Finalized</Badge>
+                            </div>
+
+                            <div className="p-8 space-y-8">
+                                {/* Stats */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-brand-cream-50 p-4 rounded-2xl border border-brand-cream/30">
+                                        <p className="text-[10px] font-bold text-brand-brown/40 uppercase tracking-widest mb-1">Category</p>
+                                        <Badge variant={result.category?.toLowerCase()} className="text-[10px] uppercase font-bold px-2 py-0.5">{result.category}</Badge>
                                     </div>
-                                    <div style={{ flex: 1, padding: "0.75rem", borderRadius: "0.5rem", background: "var(--color-gray-50)", border: "1px solid var(--color-gray-100)" }}>
-                                        <div style={{ fontSize: "0.7rem", color: "var(--color-gray-400)", textTransform: "uppercase", fontWeight: 700 }}>Urgency</div>
-                                        <div style={{ marginTop: 4 }}><Badge variant={result.urgency.toLowerCase()}>{result.urgency}</Badge></div>
+                                    <div className="bg-brand-cream-50 p-4 rounded-2xl border border-brand-cream/30">
+                                        <p className="text-[10px] font-bold text-brand-brown/40 uppercase tracking-widest mb-1">Urgency</p>
+                                        <Badge variant={result.urgency?.toLowerCase()} className="text-[10px] uppercase font-bold px-2 py-0.5">{result.urgency}</Badge>
                                     </div>
                                 </div>
 
                                 {/* Summary */}
-                                <div>
-                                    <h4 style={{ fontSize: "0.9rem", fontWeight: 700, marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: 6 }}>
-                                        <CheckCircle2 size={16} className="text-success" /> AI Executive Summary
-                                    </h4>
-                                    <p style={{ fontSize: "0.9rem", color: "var(--color-gray-700)", lineHeight: 1.6, background: "var(--color-surface)", padding: "1rem", borderRadius: "0.5rem", borderLeft: "4px solid var(--color-primary)" }}>
-                                        {result.summary}
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <Sparkles size={16} className="text-brand-gold" />
+                                        <h4 className="text-xs font-bold text-brand-brown/60 uppercase tracking-widest">Executive Summary</h4>
+                                    </div>
+                                    <p className="text-sm font-medium leading-relaxed text-brand-brown-dark bg-brand-cream-50/50 p-5 rounded-2xl border-l-4 border-brand-gold italic">
+                                        "{result.summary}"
                                     </p>
                                 </div>
 
-                                {/* Key Needs Chips */}
-                                <div>
-                                    <h4 style={{ fontSize: "0.9rem", fontWeight: 700, marginBottom: "0.5rem" }}>Detected Key Needs</h4>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                                {/* Detected Needs */}
+                                <div className="space-y-3">
+                                    <h4 className="text-xs font-bold text-brand-brown/60 uppercase tracking-widest ml-1">Key Needs Detected</h4>
+                                    <div className="flex flex-wrap gap-2">
                                         {result.key_needs?.map((need, i) => (
-                                            <span key={i} style={{ 
-                                                fontSize: "0.8rem", 
-                                                padding: "0.25rem 0.75rem", 
-                                                background: "var(--color-brand-cream-50)", 
-                                                border: "1px solid var(--color-brand-cream)",
-                                                borderRadius: "99px",
-                                                color: "var(--color-brand-brown)"
-                                            }}>
+                                            <span key={i} className="px-3 py-1.5 rounded-lg bg-brand-cream-50 border border-brand-cream/30 text-xs font-bold text-brand-brown-dark">
                                                 {need}
                                             </span>
                                         ))}
@@ -275,65 +275,33 @@ export default function Analysis() {
                                 </div>
 
                                 {/* Recommended Skills */}
-                                <div>
-                                    <h4 style={{ fontSize: "0.9rem", fontWeight: 700, marginBottom: "0.5rem" }}>Recommended Volunteer Skills</h4>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                                <div className="space-y-3">
+                                    <h4 className="text-xs font-bold text-brand-brown/60 uppercase tracking-widest ml-1">Required Volunteer Skills</h4>
+                                    <div className="flex flex-wrap gap-2">
                                         {result.recommended_skills?.map((skill, i) => (
-                                            <span key={i} style={{ 
-                                                fontSize: "0.8rem", 
-                                                padding: "0.25rem 0.75rem", 
-                                                background: "var(--color-brand-mint-50)", 
-                                                border: "1px solid var(--color-brand-mint)",
-                                                borderRadius: "99px",
-                                                color: "var(--color-brand-mint-dark)",
-                                                fontWeight: 600
-                                            }}>
+                                            <span key={i} className="px-3 py-1.5 rounded-lg bg-brand-mint/20 border border-brand-mint/30 text-xs font-bold text-brand-mint-dark">
                                                 {skill}
                                             </span>
                                         ))}
                                     </div>
                                 </div>
 
-                                {/* Action Footer */}
-                                <div style={{ marginTop: "0.5rem", paddingTop: "1rem", borderTop: "1px solid var(--color-gray-100)", display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-                                    <button className="btn btn-ghost btn-sm">Discard</button>
-                                    <button className="btn btn-accent btn-sm" onClick={() => toast.success("Redirecting to Smart Matching...")}>
-                                        Match Volunteers <ArrowRight size={14} />
+                                {/* Footer Action */}
+                                <div className="pt-6 border-t border-brand-cream/20 flex gap-3">
+                                    <button className="flex-1 py-3 text-xs font-bold text-brand-brown/60 hover:bg-brand-cream-50 rounded-xl transition-colors">Discard</button>
+                                    <button 
+                                        className="flex-[2] py-3 bg-brand-gold text-brand-brown font-bold rounded-xl text-xs flex items-center justify-center gap-2 hover:bg-brand-gold-dark transition-all shadow-lg shadow-brand-gold/20"
+                                        onClick={() => toast.success("Redirecting to Smart Matching...")}
+                                    >
+                                        <span>Proceed to Matching</span>
+                                        <ArrowRight size={14} />
                                     </button>
                                 </div>
-
                             </div>
-                        </Card>
+                        </div>
                     )}
                 </div>
             </div>
-
-            <style>{`
-                .analysis-page {
-                    animation: fadeIn 0.4s ease-out;
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                .animate-spin {
-                    animation: spin 1s linear infinite;
-                }
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
-    );
-}
-
-// Dummy ArrowRight for the footer button
-function ArrowRight({ size }) {
-    return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-            <polyline points="12 5 19 12 12 19"></polyline>
-        </svg>
     );
 }

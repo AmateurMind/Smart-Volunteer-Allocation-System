@@ -23,5 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment variables
+# ── Secrets & credentials (NEVER commit these) ────────────────────────────────
 .env
+.env.local
+.env.*.local
+serviceAccountKey.json
+*serviceAccount*.json
+*credentials*.json
+*secret*.json
+gcloud-key.json

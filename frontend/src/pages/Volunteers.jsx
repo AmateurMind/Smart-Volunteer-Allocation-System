@@ -10,7 +10,11 @@ import {
     Award,
     Calendar,
     ChevronRight,
-    SearchX
+    SearchX,
+    UserPlus,
+    ShieldCheck,
+    Briefcase,
+    Sparkles
 } from "lucide-react";
 import { Card, SkeletonLoader } from "../components/ui/StatCard";
 import { Badge } from "../components/ui/Badge";
@@ -54,99 +58,126 @@ export default function Volunteers() {
     });
 
     return (
-        <div className="volunteers-page">
-            <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
                 <div>
-                    <h1 className="page-title">Volunteer Management</h1>
-                    <p className="page-subtitle">Manage and track your community's active workforce</p>
+                    <h1 className="font-serif text-4xl text-brand-brown-dark mb-2">Volunteer Registry</h1>
+                    <p className="text-muted-foreground font-medium flex items-center gap-2 uppercase tracking-widest text-[10px]">
+                        <Briefcase size={14} className="text-brand-gold" />
+                        Manage and track your community's active workforce
+                    </p>
                 </div>
-                <button className="btn btn-primary btn-sm">
+                <button className="bg-brand-brown text-white px-6 py-3 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-brand-brown/20 hover:bg-brand-brown-dark hover:-translate-y-0.5 transition-all">
+                    <UserPlus size={16} />
                     Register New Volunteer
                 </button>
             </div>
 
-            {/* ── Filters Bar ────────────────────────────────────────────────── */}
-            <div className="card" style={{ padding: "0.75rem 1rem", marginBottom: "1.5rem", display: "flex", gap: "1rem", alignItems: "center" }}>
-                <div style={{ position: "relative", flex: 1 }}>
-                    <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-gray-400)" }} />
+            {/* Filters Bar */}
+            <div className="bg-white rounded-2xl p-4 mb-8 border border-brand-cream/30 shadow-sm flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
+                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-brown/30" />
                     <input 
-                        className="form-input" 
-                        placeholder="Search volunteers by name or location..." 
-                        style={{ paddingLeft: "2.5rem" }}
+                        type="text"
+                        placeholder="Search by name or location..." 
+                        className="w-full pl-12 pr-4 py-3 rounded-xl bg-brand-cream-50 border-none text-sm font-medium focus:ring-2 focus:ring-brand-gold/20 transition-all outline-none"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <select 
-                    className="form-select" 
-                    style={{ width: 200 }}
-                    value={filterSkill}
-                    onChange={(e) => setFilterSkill(e.target.value)}
-                >
-                    <option>All Skills</option>
-                    <option>Medical</option>
-                    <option>Logistics</option>
-                    <option>Education</option>
-                    <option>General Labor</option>
-                </select>
-                <button className="btn btn-outline btn-icon"><Filter size={18} /></button>
+                <div className="flex gap-4">
+                    <select 
+                        className="px-4 py-3 rounded-xl bg-brand-cream-50 border-none text-sm font-bold text-brand-brown/60 focus:ring-2 focus:ring-brand-gold/20 outline-none min-w-[160px]"
+                        value={filterSkill}
+                        onChange={(e) => setFilterSkill(e.target.value)}
+                    >
+                        <option>All Skills</option>
+                        <option>Medical</option>
+                        <option>Logistics</option>
+                        <option>Education</option>
+                        <option>General Labor</option>
+                    </select>
+                    <button className="p-3 rounded-xl bg-brand-cream-50 text-brand-brown/40 hover:text-brand-brown hover:bg-brand-cream-100 transition-colors border-none">
+                        <Filter size={18} />
+                    </button>
+                </div>
             </div>
 
-            {/* ── Volunteers Grid ────────────────────────────────────────────── */}
+            {/* Volunteers Grid */}
             {loading ? (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.25rem" }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     <SkeletonLoader count={6} variant="card" />
                 </div>
             ) : filteredVolunteers.length === 0 ? (
-                <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-gray-400)" }}>
-                    <SearchX size={48} style={{ marginBottom: "1rem" }} />
-                    <h3>No volunteers found matching your criteria.</h3>
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="w-20 h-20 rounded-full bg-brand-cream-50 flex items-center justify-center text-brand-brown/10 mb-6">
+                        <SearchX size={40} />
+                    </div>
+                    <h3 className="text-xl font-bold text-brand-brown/40">No volunteers found</h3>
+                    <p className="text-sm text-brand-brown/30 mt-2">Try adjusting your search or filters.</p>
                 </div>
             ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.25rem" }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {filteredVolunteers.map(v => (
-                        <Card key={v.id} hover className="card-hover">
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                                <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                                    <div className="avatar avatar-lg">{v.avatar}</div>
+                        <div key={v.id} className="group bg-white rounded-3xl p-6 border border-brand-cream/30 hover:border-brand-gold/30 hover:shadow-xl hover:shadow-brand-brown/5 transition-all duration-300 relative overflow-hidden">
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="flex gap-4 items-center">
+                                    <div className="w-14 h-14 rounded-2xl bg-brand-cream-50 text-brand-brown font-bold flex items-center justify-center text-lg shadow-sm group-hover:bg-brand-gold group-hover:text-brand-brown transition-colors">
+                                        {v.avatar}
+                                    </div>
                                     <div>
-                                        <h4 style={{ fontSize: "1rem", fontWeight: 700 }}>{v.name}</h4>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: "var(--color-gray-500)" }}>
-                                            <MapPin size={10} /> {v.location}
+                                        <h4 className="font-bold text-brand-brown-dark text-lg truncate max-w-[150px]">{v.name}</h4>
+                                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
+                                            <MapPin size={12} className="text-brand-gold" />
+                                            {v.location}
                                         </div>
                                     </div>
                                 </div>
-                                <Badge variant={v.status.toLowerCase() === 'available' ? 'success' : v.status.toLowerCase() === 'busy' ? 'danger' : 'warning'}>
+                                <Badge variant={v.status.toLowerCase() === 'available' ? 'success' : v.status.toLowerCase() === 'busy' ? 'danger' : 'warning'} className="text-[10px] font-bold uppercase px-2 py-0.5">
                                     {v.status}
                                 </Badge>
                             </div>
 
-                            <div style={{ margin: "1.25rem 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                                <div style={{ background: "var(--color-gray-50)", padding: "0.5rem", borderRadius: "0.5rem", textAlign: "center" }}>
-                                    <div style={{ fontSize: "0.65rem", color: "var(--color-gray-400)", textTransform: "uppercase" }}>Rating</div>
-                                    <div style={{ fontWeight: 700, fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                                        {v.rating} <Star size={14} fill="var(--color-accent)" color="var(--color-accent)" />
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div className="bg-brand-cream-50/50 p-3 rounded-2xl border border-brand-cream/20">
+                                    <p className="text-[10px] font-bold text-brand-brown/40 uppercase tracking-widest mb-1 text-center">Rating</p>
+                                    <div className="flex items-center justify-center gap-1.5 text-brand-gold font-bold">
+                                        <Star size={14} fill="currentColor" />
+                                        <span>{v.rating}</span>
                                     </div>
                                 </div>
-                                <div style={{ background: "var(--color-gray-50)", padding: "0.5rem", borderRadius: "0.5rem", textAlign: "center" }}>
-                                    <div style={{ fontSize: "0.65rem", color: "var(--color-gray-400)", textTransform: "uppercase" }}>Missions</div>
-                                    <div style={{ fontWeight: 700, fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                                        {v.tasks} <Award size={14} color="var(--color-primary)" />
+                                <div className="bg-brand-cream-50/50 p-3 rounded-2xl border border-brand-cream/20">
+                                    <p className="text-[10px] font-bold text-brand-brown/40 uppercase tracking-widest mb-1 text-center">Missions</p>
+                                    <div className="flex items-center justify-center gap-1.5 text-brand-brown font-bold">
+                                        <Award size={14} className="text-brand-gold" />
+                                        <span>{v.tasks}</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: "1.25rem", height: 48, overflow: "hidden" }}>
-                                {v.skills.map(s => <span key={s} style={{ fontSize: "0.7rem", background: "var(--color-brand-cream-50)", padding: "2px 10px", borderRadius: 99, border: "1px solid var(--color-brand-cream)", color: "var(--color-brand-brown)" }}>{s}</span>)}
+                            <div className="flex flex-wrap gap-1.5 mb-8 h-12 overflow-hidden content-start">
+                                {v.skills.map(s => (
+                                    <span key={s} className="px-3 py-1 rounded-full bg-brand-cream-50 text-[10px] font-bold text-brand-brown/60 uppercase tracking-tight border border-brand-cream/20">
+                                        {s}
+                                    </span>
+                                ))}
                             </div>
 
-                            <div style={{ display: "flex", gap: "0.5rem", paddingTop: "1rem", borderTop: "1px solid var(--color-gray-100)" }}>
-                                <button className="btn btn-outline btn-sm" style={{ flex: 1 }} onClick={() => toast(`Contacting ${v.name}...`)}>
-                                    <Mail size={14} /> Email
+                            <div className="flex gap-2 pt-4 border-t border-brand-cream/20">
+                                <button className="flex-1 py-2.5 rounded-xl border border-brand-cream text-brand-brown text-[11px] font-bold hover:bg-brand-cream-50 transition-colors flex items-center justify-center gap-2">
+                                    <Mail size={14} className="text-brand-gold" />
+                                    Email
                                 </button>
-                                <button className="btn btn-ghost btn-icon btn-sm"><ChevronRight size={18} /></button>
+                                <button className="flex-1 py-2.5 rounded-xl border border-brand-cream text-brand-brown text-[11px] font-bold hover:bg-brand-cream-50 transition-colors flex items-center justify-center gap-2">
+                                    <Phone size={14} className="text-brand-gold" />
+                                    Call
+                                </button>
+                                <button className="w-10 h-10 rounded-xl bg-brand-cream-50 flex items-center justify-center text-brand-brown/40 hover:text-brand-gold transition-colors">
+                                    <ChevronRight size={18} />
+                                </button>
                             </div>
-                        </Card>
+                        </div>
                     ))}
                 </div>
             )}
