@@ -1,0 +1,860 @@
+"""
+SVAS Backend – /notifications Router
+Push notification endpoints powered by Firebase Cloud Messaging (FCM).
+Handles individual task notifications, broadcast urgent alerts, and reminders.
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from app.config.settings import settings
+from app.middleware.auth import get_current_user
+from app.services.bigquery_service import BigQueryService, EventType
+from app.services.fcm_service import FCMService
+from app.services.firestore_service import FirestoreService
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/notifications", tags=["Notifications"])
+
+# ── Shared service singletons ─────────────────────────────────────────────────
+
+_firestore: Optional[FirestoreService] = None
+_fcm: Optional[FCMService] = None
+_bigquery: Optional[BigQueryService] = None
+
+
+def _get_firestore() -> FirestoreService:
+    global _firestore
+    if _firestore is None:
+        _firestore = FirestoreService()
+    return _firestore
+
+
+def _get_fcm() -> FCMService:
+    global _fcm
+    if _fcm is None:
+        _fcm = FCMService()
+    return _fcm
+
+
+def _get_bigquery() -> BigQueryService:
+    global _bigquery
+    if _bigquery is None:
+        _bigquery = BigQueryService()
+    return _bigquery
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Request / Response schemas
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class SendNotificationRequest(BaseModel):
+    """Request body for sending a notification to a single volunteer."""
+
+    volunteer_id: str = Field(
+        ...,
+        description="Firestore document ID (UID) of the target volunteer.",
+        examples=["uid_vol_abc123"],
+    )
+    title: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Notification title shown in the device tray.",
+        examples=["New Task Available"],
+    )
+    body: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Notification body / detail text.",
+        examples=["A food-distribution task has been created near you."],
+    )
+    notification_type: str = Field(
+        default="GENERAL",
+        description=(
+            "Type tag embedded in the data payload so the mobile client can "
+            "route to the correct screen. Common values: GENERAL, TASK_ASSIGNED, "
+            "TASK_REMINDER, URGENT_ALERT, WELCOME."
+        ),
+        examples=["TASK_ASSIGNED"],
+    )
+    extra_data: Dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Additional key-value pairs to include in the FCM data payload. "
+            "All values are converted to strings automatically."
+        ),
+    )
+
+
+class SendNotificationResponse(BaseModel):
+    success: bool
+    volunteer_id: str
+    message: str
+    notification_type: str
+    sent_at: datetime
+
+
+class UrgentAlertRequest(BaseModel):
+    """Request body for broadcasting an urgent need alert."""
+
+    need_id: str = Field(
+        ...,
+        description="Firestore document ID of the urgent need to broadcast.",
+        examples=["need_xyz789"],
+    )
+    target_roles: List[str] = Field(
+        default=["COORDINATOR", "VOLUNTEER"],
+        description=(
+            "Platform roles that should receive the alert. "
+            "Allowed values: ADMIN, COORDINATOR, VOLUNTEER."
+        ),
+    )
+    custom_message: Optional[str] = Field(
+        default=None,
+        max_length=300,
+        description="Optional custom body text to override the auto-generated message.",
+    )
+
+
+class UrgentAlertResponse(BaseModel):
+    success: bool
+    need_id: str
+    recipients_targeted: int
+    fcm_success: int
+    fcm_failure: int
+    message: str
+    sent_at: datetime
+
+
+class ReminderResponse(BaseModel):
+    success: bool
+    task_id: str
+    volunteer_id: str
+    message: str
+    sent_at: datetime
+
+
+class BroadcastRequest(BaseModel):
+    """Broadcast a custom notification to all users of specified roles."""
+
+    title: str = Field(..., min_length=1, max_length=100)
+    body: str = Field(..., min_length=1, max_length=500)
+    target_roles: List[str] = Field(
+        default=["COORDINATOR", "VOLUNTEER"],
+        description="Roles to target. Empty list = all users.",
+    )
+    notification_type: str = Field(default="BROADCAST")
+    extra_data: Dict[str, Any] = Field(default_factory=dict)
+
+
+class BroadcastResponse(BaseModel):
+    success: bool
+    recipients_targeted: int
+    fcm_success: int
+    fcm_failure: int
+    message: str
+    sent_at: datetime
+
+
+class FCMTokenUpdateRequest(BaseModel):
+    """Request body for registering / refreshing a device FCM token."""
+
+    fcm_token: str = Field(
+        ...,
+        min_length=10,
+        description="The FCM device registration token generated by the Firebase SDK.",
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+async def _resolve_volunteer_token(
+    fs: FirestoreService,
+    volunteer_id: str,
+) -> tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """
+    Fetch a volunteer document and return ``(fcm_token, volunteer_doc)``.
+    Returns ``(None, None)`` if the volunteer is not found.
+    """
+    volunteer = await fs.get_document(settings.COLLECTION_VOLUNTEERS, volunteer_id)
+    if not volunteer:
+        return None, None
+    return volunteer.get("fcm_token"), volunteer
+
+
+async def _collect_tokens_by_roles(
+    fs: FirestoreService,
+    roles: List[str],
+) -> List[str]:
+    """
+    Gather FCM tokens from the ``users`` Firestore collection for all users
+    whose role is in *roles*.
+
+    De-duplicates tokens before returning.
+    """
+    tokens: List[str] = []
+
+    for role in roles:
+        role_tokens = await fs.get_all_fcm_tokens(role=role.upper())
+        tokens.extend(role_tokens)
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique: List[str] = []
+    for t in tokens:
+        if t and t not in seen:
+            seen.add(t)
+            unique.append(t)
+    return unique
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /notifications/send
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/send",
+    response_model=SendNotificationResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Send a notification to a specific volunteer",
+    description=(
+        "Look up the target volunteer's FCM token from Firestore and deliver "
+        "a custom push notification via Firebase Cloud Messaging."
+    ),
+)
+async def send_notification(
+    request: SendNotificationRequest,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+) -> SendNotificationResponse:
+    """
+    Send a push notification to a single volunteer.
+
+    Steps
+    -----
+    1. Fetch volunteer document → resolve FCM token.
+    2. Send notification via FCM.
+    3. Log NOTIFICATION_SENT event to BigQuery (background).
+    """
+    fs = _get_firestore()
+    fcm = _get_fcm()
+    bq = _get_bigquery()
+    user_uid: str = current_user.get("uid", "anonymous")
+
+    # ── 1. Resolve FCM token ──────────────────────────────────────────
+    token, volunteer = await _resolve_volunteer_token(fs, request.volunteer_id)
+    if volunteer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Volunteer '{request.volunteer_id}' not found.",
+        )
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Volunteer '{volunteer.get('name', request.volunteer_id)}' "
+                "does not have an FCM token registered. "
+                "They need to open the app to generate one."
+            ),
+        )
+
+    # ── 2. Send notification ──────────────────────────────────────────
+    data_payload = {
+        "type": request.notification_type,
+        "volunteer_id": request.volunteer_id,
+        **request.extra_data,
+    }
+
+    sent = await fcm.send_notification(
+        token=token,
+        title=request.title,
+        body=request.body,
+        data=data_payload,
+    )
+
+    if not sent:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="FCM delivery failed. The token may be invalid or expired.",
+        )
+
+    # ── 3. BigQuery log (background) ──────────────────────────────────
+    background_tasks.add_task(
+        bq.log_event,
+        EventType.NOTIFICATION_SENT,
+        {
+            "user_uid": user_uid,
+            "volunteer_id": request.volunteer_id,
+            "notification_type": request.notification_type,
+            "title": request.title,
+        },
+    )
+
+    logger.info(
+        "Notification sent to volunteer '%s' by user '%s'. type=%s",
+        request.volunteer_id,
+        user_uid,
+        request.notification_type,
+    )
+
+    return SendNotificationResponse(
+        success=True,
+        volunteer_id=request.volunteer_id,
+        message=(
+            f"Notification delivered to '{volunteer.get('name', request.volunteer_id)}'."
+        ),
+        notification_type=request.notification_type,
+        sent_at=datetime.utcnow(),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /notifications/urgent
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/urgent",
+    response_model=UrgentAlertResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Broadcast an urgent need alert",
+    description=(
+        "Fetch the need document from Firestore and broadcast an urgent alert "
+        "to all coordinators and/or volunteers via FCM multicast.\n\n"
+        "The notification body is auto-generated from the need data "
+        "unless a ``custom_message`` is provided."
+    ),
+)
+async def send_urgent_alert(
+    request: UrgentAlertRequest,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+) -> UrgentAlertResponse:
+    """
+    Broadcast an urgent alert for a HIGH-priority community need.
+
+    Steps
+    -----
+    1. Fetch the need document from Firestore.
+    2. Collect FCM tokens for all target roles.
+    3. Send multicast notification via FCM.
+    4. Log URGENT_ALERT_SENT event to BigQuery.
+    """
+    fs = _get_firestore()
+    fcm = _get_fcm()
+    bq = _get_bigquery()
+    user_uid: str = current_user.get("uid", "anonymous")
+
+    # ── 1. Fetch need ─────────────────────────────────────────────────
+    need = await fs.get_document(settings.COLLECTION_NEEDS, request.need_id)
+    if not need:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Need '{request.need_id}' not found.",
+        )
+
+    # ── 2. Collect tokens ─────────────────────────────────────────────
+    valid_roles = {"ADMIN", "COORDINATOR", "VOLUNTEER"}
+    target_roles = [r.upper() for r in request.target_roles if r.upper() in valid_roles]
+
+    if not target_roles:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"No valid roles specified. Valid roles: {sorted(valid_roles)}",
+        )
+
+    tokens = await _collect_tokens_by_roles(fs, target_roles)
+
+    if not tokens:
+        logger.warning(
+            "urgent_alert: no FCM tokens found for roles %s – no notifications sent.",
+            target_roles,
+        )
+        return UrgentAlertResponse(
+            success=False,
+            need_id=request.need_id,
+            recipients_targeted=0,
+            fcm_success=0,
+            fcm_failure=0,
+            message="No registered devices found for the target roles. No notifications sent.",
+            sent_at=datetime.utcnow(),
+        )
+
+    # Override the need body if a custom message was supplied
+    if request.custom_message:
+        need_for_alert = {**need, "title": request.custom_message}
+    else:
+        need_for_alert = need
+
+    # ── 3. Send multicast ─────────────────────────────────────────────
+    result = await fcm.send_urgent_alert(tokens=tokens, need=need_for_alert)
+
+    fcm_success: int = result.get("success", 0)
+    fcm_failure: int = result.get("failure", 0)
+
+    # ── 4. BigQuery log (background) ──────────────────────────────────
+    background_tasks.add_task(
+        bq.log_event,
+        EventType.URGENT_ALERT_SENT,
+        {
+            "user_uid": user_uid,
+            "need_id": request.need_id,
+            "category": need.get("category"),
+            "urgency": need.get("urgency"),
+            "location": need.get("location"),
+            "recipients": len(tokens),
+            "fcm_success": fcm_success,
+            "fcm_failure": fcm_failure,
+        },
+    )
+
+    logger.info(
+        "Urgent alert sent for need '%s'. tokens=%d success=%d failure=%d",
+        request.need_id,
+        len(tokens),
+        fcm_success,
+        fcm_failure,
+    )
+
+    return UrgentAlertResponse(
+        success=fcm_success > 0,
+        need_id=request.need_id,
+        recipients_targeted=len(tokens),
+        fcm_success=fcm_success,
+        fcm_failure=fcm_failure,
+        message=(
+            f"Alert sent to {fcm_success}/{len(tokens)} device(s) "
+            f"for urgent need '{need.get('title', request.need_id)}'."
+        ),
+        sent_at=datetime.utcnow(),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /notifications/reminder/{task_id}
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/reminder/{task_id}",
+    response_model=ReminderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Send a task reminder to the assigned volunteer",
+    description=(
+        "Fetch the task document and send a reminder push notification to the "
+        "volunteer currently assigned to it."
+    ),
+)
+async def send_reminder(
+    task_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+) -> ReminderResponse:
+    """
+    Send a reminder notification to the volunteer assigned to a task.
+
+    Steps
+    -----
+    1. Fetch the task document from Firestore.
+    2. Resolve the assigned volunteer's FCM token.
+    3. Send the reminder via FCM.
+    4. Log NOTIFICATION_SENT event to BigQuery.
+    """
+    fs = _get_firestore()
+    fcm = _get_fcm()
+    bq = _get_bigquery()
+    user_uid: str = current_user.get("uid", "anonymous")
+
+    # ── 1. Fetch task ─────────────────────────────────────────────────
+    task = await fs.get_document(settings.COLLECTION_TASKS, task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task '{task_id}' not found.",
+        )
+
+    volunteer_id: Optional[str] = task.get("assigned_volunteer_id")
+    if not volunteer_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Task '{task_id}' does not have an assigned volunteer.",
+        )
+
+    # Completed / cancelled tasks don't need reminders
+    current_status = task.get("status", "")
+    if current_status in ("COMPLETED", "VERIFIED", "CANCELLED", "REJECTED"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Task '{task_id}' is already '{current_status}'. "
+                "Reminders are only sent for active tasks."
+            ),
+        )
+
+    # ── 2. Resolve token ──────────────────────────────────────────────
+    token, volunteer = await _resolve_volunteer_token(fs, volunteer_id)
+    if volunteer is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Assigned volunteer '{volunteer_id}' not found in Firestore.",
+        )
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Volunteer '{volunteer.get('name', volunteer_id)}' "
+                "does not have an FCM token registered."
+            ),
+        )
+
+    # ── 3. Send reminder ──────────────────────────────────────────────
+    sent = await fcm.send_reminder(volunteer_token=token, task=task)
+
+    if not sent:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="FCM delivery failed. The token may be invalid or expired.",
+        )
+
+    # ── 4. BigQuery log (background) ──────────────────────────────────
+    background_tasks.add_task(
+        bq.log_event,
+        EventType.NOTIFICATION_SENT,
+        {
+            "user_uid": user_uid,
+            "task_id": task_id,
+            "volunteer_id": volunteer_id,
+            "notification_type": "TASK_REMINDER",
+            "task_status": current_status,
+        },
+    )
+
+    logger.info(
+        "Reminder sent for task '%s' to volunteer '%s'.",
+        task_id,
+        volunteer_id,
+    )
+
+    return ReminderResponse(
+        success=True,
+        task_id=task_id,
+        volunteer_id=volunteer_id,
+        message=(
+            f"Reminder sent to '{volunteer.get('name', volunteer_id)}' "
+            f"for task '{task.get('title', task_id)}'."
+        ),
+        sent_at=datetime.utcnow(),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /notifications/broadcast
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/broadcast",
+    response_model=BroadcastResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Broadcast a custom notification to all users of given roles",
+    description=(
+        "Send a custom push notification to every registered device belonging "
+        "to users in the specified roles. Requires ADMIN or COORDINATOR access."
+    ),
+)
+async def broadcast_notification(
+    request: BroadcastRequest,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+) -> BroadcastResponse:
+    """
+    Broadcast a custom push notification platform-wide or to specific roles.
+
+    Role check
+    ----------
+    Only ADMIN and COORDINATOR users may trigger broadcasts.
+    """
+    # ── Role guard ────────────────────────────────────────────────────
+    role = current_user.get("resolved_role", current_user.get("role", "VOLUNTEER"))
+    if role not in ("ADMIN", "COORDINATOR"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only ADMIN or COORDINATOR users can send broadcast notifications.",
+        )
+
+    fs = _get_firestore()
+    fcm = _get_fcm()
+    bq = _get_bigquery()
+    user_uid: str = current_user.get("uid", "anonymous")
+
+    # ── Collect tokens ────────────────────────────────────────────────
+    valid_roles = {"ADMIN", "COORDINATOR", "VOLUNTEER"}
+    target_roles = [r.upper() for r in request.target_roles if r.upper() in valid_roles]
+
+    if not target_roles:
+        # No valid roles → target all users
+        target_roles = list(valid_roles)
+
+    tokens = await _collect_tokens_by_roles(fs, target_roles)
+
+    if not tokens:
+        return BroadcastResponse(
+            success=False,
+            recipients_targeted=0,
+            fcm_success=0,
+            fcm_failure=0,
+            message="No registered devices found for the target roles.",
+            sent_at=datetime.utcnow(),
+        )
+
+    # ── Send multicast ────────────────────────────────────────────────
+    data_payload = {
+        "type": request.notification_type,
+        **request.extra_data,
+    }
+
+    result = await fcm.send_multicast(
+        tokens=tokens,
+        title=request.title,
+        body=request.body,
+        data=data_payload,
+    )
+
+    fcm_success: int = result.get("success", 0)
+    fcm_failure: int = result.get("failure", 0)
+
+    # ── BigQuery log (background) ─────────────────────────────────────
+    background_tasks.add_task(
+        bq.log_event,
+        EventType.NOTIFICATION_SENT,
+        {
+            "user_uid": user_uid,
+            "notification_type": request.notification_type,
+            "title": request.title,
+            "recipients": len(tokens),
+            "target_roles": ", ".join(target_roles),
+            "fcm_success": fcm_success,
+            "fcm_failure": fcm_failure,
+        },
+    )
+
+    logger.info(
+        "Broadcast by user '%s'. roles=%s tokens=%d success=%d failure=%d",
+        user_uid,
+        target_roles,
+        len(tokens),
+        fcm_success,
+        fcm_failure,
+    )
+
+    return BroadcastResponse(
+        success=fcm_success > 0,
+        recipients_targeted=len(tokens),
+        fcm_success=fcm_success,
+        fcm_failure=fcm_failure,
+        message=(
+            f"Broadcast delivered to {fcm_success}/{len(tokens)} device(s) "
+            f"across role(s): {', '.join(target_roles)}."
+        ),
+        sent_at=datetime.utcnow(),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PUT /notifications/fcm-token
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.put(
+    "/fcm-token",
+    status_code=status.HTTP_200_OK,
+    summary="Register or refresh the caller's FCM device token",
+    description=(
+        "Store the current user's FCM device registration token in both the "
+        "``users`` and ``volunteers`` Firestore collections so they can "
+        "receive push notifications."
+    ),
+)
+async def update_fcm_token(
+    request: FCMTokenUpdateRequest,
+    current_user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Register or refresh the authenticated user's FCM token.
+
+    Updates both the ``users`` record and (if present) the ``volunteers``
+    record so notifications can be sent regardless of which collection is
+    queried.
+    """
+    fs = _get_firestore()
+    uid: str = current_user.get("uid", "")
+
+    if not uid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not determine user UID from token.",
+        )
+
+    token = request.fcm_token.strip()
+    now = datetime.utcnow()
+
+    # Update / create both records concurrently
+    import asyncio
+
+    async def _update_user():
+        existing = await fs.get_document(settings.COLLECTION_USERS, uid)
+        if existing:
+            await fs.update_document(
+                settings.COLLECTION_USERS,
+                uid,
+                {"fcm_token": token, "updated_at": now},
+            )
+        else:
+            # User record doesn't exist yet – create a minimal one
+            await fs.set_document(
+                settings.COLLECTION_USERS,
+                uid,
+                {
+                    "uid": uid,
+                    "fcm_token": token,
+                    "email": current_user.get("email", ""),
+                    "name": current_user.get("name", ""),
+                    "role": "VOLUNTEER",
+                    "is_active": True,
+                    "updated_at": now,
+                },
+                merge=True,
+            )
+
+    async def _update_volunteer():
+        volunteer = await fs.get_document(settings.COLLECTION_VOLUNTEERS, uid)
+        if volunteer:
+            await fs.update_document(
+                settings.COLLECTION_VOLUNTEERS,
+                uid,
+                {"fcm_token": token, "updated_at": now},
+            )
+
+    await asyncio.gather(_update_user(), _update_volunteer())
+
+    logger.info("FCM token updated for user '%s'.", uid)
+
+    return {
+        "success": True,
+        "uid": uid,
+        "message": "FCM token registered successfully.",
+        "updated_at": now.isoformat(),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DELETE /notifications/fcm-token
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.delete(
+    "/fcm-token",
+    status_code=status.HTTP_200_OK,
+    summary="Unregister the caller's FCM device token",
+    description=(
+        "Remove the FCM token from the user's Firestore profile so they "
+        "stop receiving push notifications (e.g. after logout)."
+    ),
+)
+async def delete_fcm_token(
+    current_user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Clear the FCM token for the currently authenticated user.
+    Called on logout to prevent stale token deliveries.
+    """
+    fs = _get_firestore()
+    uid: str = current_user.get("uid", "")
+
+    if not uid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not determine user UID from token.",
+        )
+
+    import asyncio
+
+    now = datetime.utcnow()
+
+    async def _clear_user():
+        existing = await fs.get_document(settings.COLLECTION_USERS, uid)
+        if existing:
+            await fs.update_document(
+                settings.COLLECTION_USERS,
+                uid,
+                {"fcm_token": None, "updated_at": now},
+            )
+
+    async def _clear_volunteer():
+        volunteer = await fs.get_document(settings.COLLECTION_VOLUNTEERS, uid)
+        if volunteer:
+            await fs.update_document(
+                settings.COLLECTION_VOLUNTEERS,
+                uid,
+                {"fcm_token": None, "updated_at": now},
+            )
+
+    await asyncio.gather(_clear_user(), _clear_volunteer())
+
+    logger.info("FCM token cleared for user '%s'.", uid)
+
+    return {
+        "success": True,
+        "uid": uid,
+        "message": "FCM token removed. You will no longer receive push notifications.",
+        "updated_at": now.isoformat(),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /notifications/status
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/status",
+    status_code=status.HTTP_200_OK,
+    summary="Check notification service status",
+    description="Returns the health status of the FCM service and Firebase Admin SDK.",
+)
+async def notification_status(
+    current_user: dict = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Return the operational status of the notification service."""
+    import firebase_admin
+
+    firebase_ready = bool(firebase_admin._apps)
+
+    return {
+        "firebase_admin_initialised": firebase_ready,
+        "fcm_available": firebase_ready,
+        "status": "operational" if firebase_ready else "degraded",
+        "message": (
+            "Firebase Cloud Messaging is available."
+            if firebase_ready
+            else "Firebase Admin SDK is not initialised. "
+            "Notifications will not be delivered. "
+            "Check FIREBASE_SERVICE_ACCOUNT_KEY in your .env file."
+        ),
+        "checked_at": datetime.utcnow().isoformat(),
+    }
