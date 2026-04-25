@@ -66,7 +66,7 @@ export default function Login() {
             await login(email.trim(), password);
             navigate(from, { replace: true });
         } catch (err) {
-            setError(err.message?.replace("Firebase: ", "").replace(/ \(auth\/.*\)\.?/, "") || "Login failed.");
+            setError(getReadableAuthError(err));
         } finally {
             setIsLoading(false);
         }
@@ -78,7 +78,7 @@ export default function Login() {
         try {
             const cred = await loginWithGoogle();
             if (cred) navigate(from, { replace: true });
-        } catch (err) {
+        } catch {
             setError("Google sign-in failed. Please try again.");
         } finally {
             setGoogleLoading(false);
@@ -230,6 +230,7 @@ export default function Login() {
                             <div className="flex gap-2 flex-wrap">
                                 {[
                                     { label: "Admin", email: "admin@svas.org", pw: "admin123" },
+                                    { label: "Coordinator", email: "coordinator1@svas.org", pw: "coord12345" },
                                     { label: "Volunteer", email: "volunteer@svas.org", pw: "vol12345" },
                                 ].map((u) => (
                                     <button
@@ -247,4 +248,21 @@ export default function Login() {
             </div>
         </div>
     );
+}
+
+function getReadableAuthError(err) {
+    const code = err?.code || "";
+    const map = {
+        "auth/user-not-found": "No account found for this email.",
+        "auth/wrong-password": "Incorrect password.",
+        "auth/invalid-credential": "Invalid email or password.",
+        "auth/invalid-email": "Invalid email format.",
+        "auth/user-disabled": "This account is disabled.",
+        "auth/operation-not-allowed": "Email/password sign-in is disabled in Firebase Auth.",
+        "auth/too-many-requests": "Too many attempts. Try again later.",
+        "auth/network-request-failed": "Network request failed. Check internet and try again.",
+    };
+
+    if (map[code]) return map[code];
+    return err?.message?.replace("Firebase: ", "").replace(/ \(auth\/.*\)\.?/, "") || "Login failed.";
 }

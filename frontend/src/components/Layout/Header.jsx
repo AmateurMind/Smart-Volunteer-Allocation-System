@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
-import { Bell, Search, ChevronDown, LogOut, User, Settings, Menu, X } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, User, Settings, Menu } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
 // ── Route → page title map ────────────────────────────────────────────────────
@@ -10,6 +10,12 @@ const PAGE_TITLES = {
     "/volunteers": { title: "Volunteers",      subtitle: "Manage volunteer profiles and availability" },
     "/matching":   { title: "Smart Matching",  subtitle: "Match volunteers to community needs" },
     "/settings":   { title: "Settings",        subtitle: "Account and system preferences" },
+};
+
+const ROLE_COPY = {
+    ADMIN: { label: "Admin view", tone: "bg-brand-gold/15 text-brand-gold border-brand-gold/30" },
+    COORDINATOR: { label: "Coordinator view", tone: "bg-brand-cream/20 text-brand-brown-dark border-brand-cream/30" },
+    VOLUNTEER: { label: "Volunteer view", tone: "bg-brand-mint/20 text-brand-brown-dark border-brand-mint/30" },
 };
 
 function getInitials(name = "") {
@@ -30,6 +36,8 @@ export default function Header({ onToggleSidebar }) {
     const [searchQuery, setSearchQuery]   = useState("");
 
     const dropdownRef = useRef(null);
+    const roleKey = (role || "VOLUNTEER").toUpperCase();
+    const roleCopy = ROLE_COPY[roleKey] || ROLE_COPY.VOLUNTEER;
 
     const pageInfo = PAGE_TITLES[location.pathname] ?? {
         title:    "SVAS",
@@ -62,9 +70,14 @@ export default function Header({ onToggleSidebar }) {
                 <h1 className="text-lg font-bold text-brand-brown-dark truncate font-sans leading-tight">
                     {pageInfo.title}
                 </h1>
-                <p className="text-[11px] text-muted-foreground truncate uppercase tracking-widest font-bold font-sans">
-                    {pageInfo.subtitle}
-                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                    <p className="text-[11px] text-muted-foreground truncate uppercase tracking-widest font-bold font-sans">
+                        {pageInfo.subtitle}
+                    </p>
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${roleCopy.tone}`}>
+                        {roleCopy.label}
+                    </span>
+                </div>
             </div>
 
             {/* ── Search Bar ────────────────────────────────────────────────── */}

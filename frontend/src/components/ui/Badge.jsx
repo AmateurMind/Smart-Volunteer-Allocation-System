@@ -1,4 +1,3 @@
-import PropTypes from "prop-types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SVAS – Badge Component
@@ -242,22 +241,5 @@ export function SkillBadge({ skill, size = "sm", style, className }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PropTypes
+// Badge
 // ─────────────────────────────────────────────────────────────────────────────
-
-Badge.propTypes = {
-    children:  PropTypes.node.isRequired,
-    variant:   PropTypes.oneOf(Object.keys(VARIANT_CLASS)),
-    size:      PropTypes.oneOf(["xs", "sm", "md", "lg"]),
-    dot:       PropTypes.bool,
-    icon:      PropTypes.node,
-    style:     PropTypes.object,
-    className: PropTypes.string,
-    title:     PropTypes.string,
-    onClick:   PropTypes.func,
-};
-
-UrgencyBadge.propTypes  = { urgency:  PropTypes.string, size: PropTypes.string, style: PropTypes.object, className: PropTypes.string };
-CategoryBadge.propTypes = { category: PropTypes.string, size: PropTypes.string, style: PropTypes.object, className: PropTypes.string };
-StatusBadge.propTypes   = { status:   PropTypes.string, size: PropTypes.string, style: PropTypes.object, className: PropTypes.string };
-SkillBadge.propTypes    = { skill:    PropTypes.string, size: PropTypes.string, style: PropTypes.object, className: PropTypes.string };

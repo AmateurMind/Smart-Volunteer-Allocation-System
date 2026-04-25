@@ -43,14 +43,19 @@
 - Firebase Project
 - Google Cloud Project with Gemini API enabled
 
-### 1. Backend Setup 🐍
+### 1. Backend Setup
 ```bash
-# Navigate to backend
+# From the repo root
 cd backend
 
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+# Windows PowerShell
+.\\venv\\Scripts\\Activate.ps1
+# Or Windows cmd
+# venv\\Scripts\\activate
+# macOS / Linux
+# source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -62,20 +67,23 @@ cp .env.example .env
 python -m app.main
 ```
 
-### 2. Frontend Setup ⚛️
+### 2. Frontend Setup
 ```bash
-# Navigate to frontend
+# From the repo root
 cd frontend
 
 # Install dependencies
 npm install
 
-# Create .env file
-# (Add VITE_FIREBASE_API_KEY, etc.)
+# Create .env file and add your Firebase values
 
 # Run development server
 npm run dev
 ```
+
+### 3. Open The App
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8080`
 
 ---
 
@@ -84,15 +92,24 @@ npm run dev
 ### Backend (`backend/.env`)
 | Variable | Description |
 |----------|-------------|
-| `GEMINI_API_KEY` | Your Google Gemini API Key |
-| `GOOGLE_CLOUD_PROJECT` | GCP Project ID |
-| `FIREBASE_SERVICE_ACCOUNT` | Path to service account JSON (optional in GCP) |
+| `GOOGLE_CLOUD_PROJECT` | Google Cloud project ID |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | Path to the Firebase service account JSON |
+| `GEMINI_API_KEY` | Gemini API key |
+| `ALLOWED_ORIGINS` | Comma-separated or JSON list of frontend origins |
+| `PORT` | Backend port, default `8080` |
 
 ### Frontend (`frontend/.env`)
 | Variable | Description |
 |----------|-------------|
-| `VITE_API_URL` | Cloud Run Backend URL |
-| `VITE_FIREBASE_CONFIG` | JSON string of Firebase config |
+| `VITE_API_BASE_URL` | Backend API URL, usually `http://localhost:8080` |
+| `VITE_FIREBASE_API_KEY` | Firebase web API key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
+| `VITE_FIREBASE_APP_ID` | Firebase app ID |
+| `VITE_FIREBASE_VAPID_KEY` | Firebase Cloud Messaging VAPID key |
+| `VITE_APP_ENV` | Usually `development` for local runs |
 
 ---
 

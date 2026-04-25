@@ -85,18 +85,22 @@ export function AuthProvider({ children }) {
 
     // ── Auth state listener ───────────────────────────────────────────────────
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
             setUser(firebaseUser);
 
+            // Unblock route rendering as soon as auth state is known.
+            // Profile + FCM setup can happen in background.
+            setLoading(false);
+
             if (firebaseUser) {
-                await fetchUserProfile(firebaseUser);
-                // Register FCM token after sign-in (non-blocking)
-                registerFCMToken();
+                fetchUserProfile(firebaseUser)
+                    .then(() => registerFCMToken())
+                    .catch((err) => {
+                        console.warn("[AuthContext] Post-auth setup failed:", err?.message || err);
+                    });
             } else {
                 setUserProfile(null);
             }
-
-            setLoading(false);
         });
 
         return unsubscribe; // cleanup on unmount

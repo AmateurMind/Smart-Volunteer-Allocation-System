@@ -2,18 +2,14 @@ import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
     LayoutDashboard,
-    Upload,
     Brain,
     Users,
     GitBranch,
-    BarChart2,
     Settings,
     ChevronLeft,
     ChevronRight,
     LogOut,
     Heart,
-    Bell,
-    Layers
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -23,26 +19,31 @@ const NAV_ITEMS = [
         to: "/dashboard",
         label: "Dashboard",
         icon: LayoutDashboard,
+        roles: ["ADMIN", "COORDINATOR", "VOLUNTEER"],
     },
     {
         to: "/analysis",
         label: "Need Analysis",
         icon: Brain,
+        roles: ["ADMIN", "COORDINATOR"],
     },
     {
         to: "/volunteers",
         label: "Volunteers",
         icon: Users,
+        roles: ["ADMIN", "COORDINATOR", "VOLUNTEER"],
     },
     {
         to: "/matching",
         label: "Task Matching",
         icon: GitBranch,
+        roles: ["ADMIN", "COORDINATOR"],
     },
     {
         to: "/settings",
         label: "Settings",
         icon: Settings,
+        roles: ["ADMIN", "COORDINATOR", "VOLUNTEER"],
     },
 ];
 
@@ -51,6 +52,24 @@ const ROLE_STYLES = {
     ADMIN: "bg-brand-gold text-white",
     COORDINATOR: "bg-brand-cream text-brand-brown-dark",
     VOLUNTEER: "bg-brand-mint text-brand-brown-dark",
+};
+
+const ROLE_COPY = {
+    ADMIN: {
+        title: "Administrator",
+        description: "Full platform control",
+        panel: "bg-brand-gold/10 border-brand-gold/20 text-brand-gold",
+    },
+    COORDINATOR: {
+        title: "Coordinator",
+        description: "Manage needs and volunteers",
+        panel: "bg-brand-cream/10 border-white/15 text-brand-cream",
+    },
+    VOLUNTEER: {
+        title: "Volunteer",
+        description: "Field work and personal tasks",
+        panel: "bg-brand-mint/10 border-brand-mint/20 text-brand-mint",
+    },
 };
 
 // ── Avatar initials helper ────────────────────────────────────────────────────
@@ -64,11 +83,15 @@ function getInitials(name = "") {
 }
 
 export default function Sidebar({ collapsed, onToggle }) {
-    const { displayName, email, role, logout, photoURL } = useAuth();
+    const { displayName, role, logout, photoURL } = useAuth();
     const navigate = useNavigate();
     const [loggingOut, setLoggingOut] = useState(false);
 
     const initials = getInitials(displayName);
+    const roleKey = (role || "VOLUNTEER").toUpperCase();
+    const roleStyle = ROLE_STYLES[roleKey] || ROLE_STYLES.VOLUNTEER;
+    const roleCopy = ROLE_COPY[roleKey] || ROLE_COPY.VOLUNTEER;
+    const visibleNavItems = NAV_ITEMS.filter((item) => item.roles.includes(roleKey));
 
     const handleLogout = async () => {
         setLoggingOut(true);
@@ -100,10 +123,26 @@ export default function Sidebar({ collapsed, onToggle }) {
                     </div>
                 )}
             </div>
+            {!collapsed && (
+                <div className="px-4 pt-4">
+                    <div className={`rounded-2xl border px-4 py-3 ${roleCopy.panel} backdrop-blur-sm`}>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.22em] opacity-80">Current role</p>
+                        <div className="mt-1 flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-bold leading-tight">{roleCopy.title}</p>
+                                <p className="text-[11px] opacity-80">{roleCopy.description}</p>
+                            </div>
+                            <div className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${roleStyle}`}>
+                                {roleKey}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── Navigation ───────────────────────────────────────────────── */}
             <nav className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
-                {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+                {visibleNavItems.map(({ to, label, icon: Icon }) => (
                     <NavLink
                         key={to}
                         to={to}

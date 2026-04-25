@@ -4,21 +4,36 @@ import {
     Users, 
     CheckCircle2, 
     Clock, 
-    TrendingUp, 
     MapPin,
-    ArrowRight,
-    Search,
-    Filter,
     Calendar,
     ChevronRight
 } from "lucide-react";
-import { StatCard, Card, SkeletonLoader } from "../components/ui/StatCard";
-import { Badge } from "../components/ui/Badge";
+import { StatCard } from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import { useAuth } from "../contexts/AuthContext";
+
+const ROLE_COPY = {
+    ADMIN: {
+        label: "Admin workspace",
+        description: "Monitor system-wide needs, volunteer health, and platform activity.",
+    },
+    COORDINATOR: {
+        label: "Coordinator workspace",
+        description: "Review urgent needs, assign volunteers, and keep missions moving.",
+    },
+    VOLUNTEER: {
+        label: "Volunteer workspace",
+        description: "Focus on your assignments, availability, and task updates.",
+    },
+};
 
 // We'll use Tailwind classes for layout and styling
 export default function Dashboard() {
+    const { role } = useAuth();
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState(null);
+    const roleKey = (role || "VOLUNTEER").toUpperCase();
+    const roleCopy = ROLE_COPY[roleKey] || ROLE_COPY.VOLUNTEER;
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -48,6 +63,10 @@ export default function Dashboard() {
                     <p className="text-muted-foreground font-sans mt-1">
                         Real-time community needs and volunteer distribution
                     </p>
+                    <div className="mt-4 inline-flex flex-col gap-1 rounded-2xl border border-brand-cream/50 bg-white px-4 py-3 shadow-sm">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-brand-brown/60">{roleCopy.label}</p>
+                        <p className="text-sm text-brand-brown-dark">{roleCopy.description}</p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <button className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-brand-cream-dark bg-white text-sm font-medium text-brand-brown hover:bg-brand-cream-50 transition-colors shadow-sm">
