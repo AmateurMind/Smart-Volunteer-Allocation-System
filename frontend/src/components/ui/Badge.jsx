@@ -90,14 +90,8 @@ const SIZE_STYLES = {
 
 /**
  * Reusable status / label badge.
- *
- * @example
- * <Badge variant="high">HIGH</Badge>
- * <Badge variant={urgencyVariant("MEDIUM")}>MEDIUM</Badge>
- * <Badge variant={categoryVariant("FOOD")} dot>Food</Badge>
- * <Badge variant="success" size="lg">Completed</Badge>
  */
-export default function Badge({
+export function Badge({
     children,
     variant = "neutral",
     size    = "md",
@@ -240,6 +234,4 @@ export function SkillBadge({ skill, size = "sm", style, className }) {
     );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Badge
-// ─────────────────────────────────────────────────────────────────────────────
+export default Badge;

@@ -2,7 +2,6 @@ __pycache__
 .env
 .git
 .gitignore
-Dockerfile
 README.md
 venv
 .venv
